@@ -546,24 +546,6 @@ const VScene3Gameplay: React.FC = () => {
                 Borussia Dortmund’un armasındaki 09, kulübün 1909 yılındaki
                 kuruluşunu simgeler.
               </div>
-              <div
-                style={{
-                  borderRadius: 12,
-                  overflow: "hidden",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "#112219",
-                  padding: 8,
-                }}
-              >
-                <Img
-                  src={staticFile("did-you-know.png")}
-                  style={{
-                    width: "100%",
-                    height: "auto",
-                    display: "block",
-                  }}
-                />
-              </div>
             </div>
           </div>
 
