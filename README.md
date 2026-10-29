@@ -92,8 +92,22 @@ app/
 ├── package-lock.json
 ├── tsconfig*.json
 └── vite.config.ts
+video/
+├── public/                 # Playwright ile alınan gerçek uygulama ekran görüntüleri ve sentetik ses
+├── src/                    # Remotion (TypeScript) sahneleri ve cihaz çerçeveleri
+├── package.json
+├── remotion.config.ts
+└── tsconfig.json
 ```
 
 Teknolojiler: Vite, React, TypeScript, Tailwind CSS, Framer Motion, Lucide ve Vitest. Testler; puanlama, hız/seri sınırları, karıştırma ve doğru şıkkın korunması, süre aşımı, çift cevap engeli, klasik/timed bitişleri, havuzun yeniden karıştırılması, yerel rekorlar ve veri bütünlüğünü kapsar.
 
-**Video aşaması bu kapsamda uygulanmadı; `video/` klasörü veya MP4 çıktısı yoktur.**
+## Video
+
+`video/` klasöründe uygulamanın gerçek ekran görüntülerini, kinetik tipografiyi, cihaz çerçevelerini ve sahne geçişlerini kullanan **Remotion** (1920×1080, 30 fps, 54 sn, H.264 `yuv420p`) tanıtım videosu projesi yer alır:
+
+```bash
+cd video
+npm install
+npx remotion render src/index.ts GolBilgiPromo out/golbilgi-tanitim.mp4 --codec=h264 --pixel-format=yuv420p
+```
