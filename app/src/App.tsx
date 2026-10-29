@@ -48,6 +48,7 @@ import {
   type Settings,
 } from "./game";
 import {
+  persistRecords,
   readRecords,
   STORAGE_KEY,
   updateRecords,
@@ -185,28 +186,62 @@ function App() {
   const [storageAvailable, setStorageAvailable] = useState(true);
   const [modal, setModal] = useState<"help" | "exit" | null>(null);
   const closeModal = useCallback(() => setModal(null), []);
+  const modalTrigger = useRef<HTMLElement | null>(null);
+  const openModal = useCallback((kind: "help" | "exit") => {
+    modalTrigger.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    setModal(kind);
+  }, []);
   const [pendingView, setPendingView] = useState<"home" | "records">("home");
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const savedGameId = useRef<string | null>(null);
   const finished = game?.phase === "finished";
   const playing = view === "game" && game !== null && !finished;
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      window.localStorage.getItem(STORAGE_KEY);
       setStorageAvailable(true);
     } catch {
       setStorageAvailable(false);
     }
+  }, []);
+
+  useEffect(() => {
+    function synchronize(event: StorageEvent) {
+      if (event.key !== STORAGE_KEY && event.key !== null) return;
+      try {
+        const storage = window.localStorage;
+        if (event.storageArea !== null && event.storageArea !== storage) return;
+        setRecords(
+          event.newValue === null
+            ? readRecords(storage)
+            : persistRecords(storage, records),
+        );
+        setStorageAvailable(true);
+      } catch {
+        setStorageAvailable(false);
+      }
+    }
+    window.addEventListener("storage", synchronize);
+    return () => window.removeEventListener("storage", synchronize);
   }, [records]);
 
   useEffect(() => {
-    if (game?.phase !== "finished") return;
+    if (game?.phase !== "finished" || savedGameId.current === game.id) return;
+    savedGameId.current = game.id;
     setModal(null);
-    setRecords(
-      (previous) =>
-        updateRecords(previous, game, new Date().toISOString()).records,
-    );
-  }, [game]);
+    const next = updateRecords(records, game, new Date().toISOString()).records;
+    try {
+      setRecords(persistRecords(window.localStorage, next));
+      setStorageAvailable(true);
+    } catch {
+      setRecords(next);
+      setStorageAvailable(false);
+    }
+  }, [game, records]);
 
   useEffect(() => {
     if (!playing) return;
@@ -276,7 +311,7 @@ function App() {
   function navigate(next: "home" | "records") {
     if (playing) {
       setPendingView(next);
-      setModal("exit");
+      openModal("exit");
       return;
     }
     setView(next);
@@ -296,10 +331,10 @@ function App() {
   return (
     <MotionConfig reducedMotion="user">
       <div className={`app-shell${playing ? " is-playing" : ""}`}>
-        <a className="skip-link" href="#main">
+        <a className="skip-link" href="#main" inert={modal !== null}>
           İçeriğe geç
         </a>
-        <aside className="sidebar">
+        <aside className="sidebar" inert={modal !== null}>
           <button
             className="brand"
             onClick={() => navigate("home")}
@@ -349,7 +384,7 @@ function App() {
               </p>
               <span>Bilgin, en iyi transferin.</span>
             </div>
-            <button className="help-link" onClick={() => setModal("help")}>
+            <button className="help-link" onClick={() => openModal("help")}>
               <CircleHelp size={17} /> Nasıl oynanır?
               <ArrowRight size={15} />
             </button>
@@ -358,7 +393,7 @@ function App() {
             </div>
           </div>
         </aside>
-        <div className="main-wrap">
+        <div className="main-wrap" inert={modal !== null}>
           <header className="topbar">
             <div className="breadcrumb">
               <span>GolBilgi</span>
@@ -520,7 +555,7 @@ function App() {
                           <p>Doğruyu bul, hızlı davran, seriyi bozma.</p>
                         </div>
                         <button
-                          onClick={() => setModal("help")}
+                          onClick={() => openModal("help")}
                           aria-label="Puanlama kurallarını gör"
                         >
                           <CircleHelp size={19} />
@@ -569,7 +604,7 @@ function App() {
                       }
                       onExit={() => {
                         setPendingView("home");
-                        setModal("exit");
+                        openModal("exit");
                       }}
                       headingRef={headingRef}
                     />
@@ -594,6 +629,7 @@ function App() {
         </div>
         {modal && (
           <Modal
+            returnFocus={modalTrigger.current}
             title={
               modal === "help"
                 ? "Başlama vuruşundan önce"
@@ -1429,16 +1465,17 @@ function Records({
 function Modal({
   title,
   onClose,
+  returnFocus,
   children,
 }: {
   title: string;
   onClose: () => void;
+  returnFocus: HTMLElement | null;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     closeRef.current?.focus();
@@ -1454,7 +1491,10 @@ function Modal({
       if (!focusable?.length) return;
       const first = focusable[0],
         last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      if (!ref.current?.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -1462,13 +1502,23 @@ function Modal({
         first.focus();
       }
     }
+    function containFocus(event: FocusEvent) {
+      if (
+        event.target instanceof Node &&
+        !ref.current?.contains(event.target)
+      ) {
+        closeRef.current?.focus();
+      }
+    }
     document.addEventListener("keydown", key);
+    document.addEventListener("focusin", containFocus);
     return () => {
       document.removeEventListener("keydown", key);
+      document.removeEventListener("focusin", containFocus);
       document.body.style.overflow = previousOverflow;
-      previous?.focus();
+      returnFocus?.focus();
     };
-  }, [onClose]);
+  }, [onClose, returnFocus]);
   return (
     <div
       className="modal-backdrop"

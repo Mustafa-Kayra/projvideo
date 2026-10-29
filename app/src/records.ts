@@ -9,9 +9,9 @@ export interface ScoreRecord extends Settings {
 }
 export const STORAGE_KEY = "golbilgi.records.v1";
 
-export function readRecords(storage: Pick<Storage, "getItem">): ScoreRecord[] {
+function parseRecords(serialized: string | null): ScoreRecord[] {
   try {
-    const value: unknown = JSON.parse(storage.getItem(STORAGE_KEY) ?? "[]");
+    const value: unknown = JSON.parse(serialized ?? "[]");
     if (!Array.isArray(value)) return [];
     return value.filter((item): item is ScoreRecord => {
       if (!item || typeof item !== "object") return false;
@@ -39,6 +39,39 @@ export function readRecords(storage: Pick<Storage, "getItem">): ScoreRecord[] {
   } catch {
     return [];
   }
+}
+
+export function readRecords(storage: Pick<Storage, "getItem">): ScoreRecord[] {
+  try {
+    return parseRecords(storage.getItem(STORAGE_KEY));
+  } catch {
+    return [];
+  }
+}
+
+export function mergeRecords(
+  ...groups: (readonly ScoreRecord[])[]
+): ScoreRecord[] {
+  const best = new Map<string, ScoreRecord>();
+  for (const records of groups) {
+    for (const record of records) {
+      const key = `${record.category}:${record.mode}:${record.difficulty}`;
+      const previous = best.get(key);
+      if (!previous || record.score > previous.score) best.set(key, record);
+    }
+  }
+  return [...best.values()];
+}
+
+export function persistRecords(
+  storage: Pick<Storage, "getItem" | "setItem">,
+  records: readonly ScoreRecord[],
+): ScoreRecord[] {
+  const serialized = storage.getItem(STORAGE_KEY);
+  const merged = mergeRecords(parseRecords(serialized), records);
+  const next = JSON.stringify(merged);
+  if (serialized !== next) storage.setItem(STORAGE_KEY, next);
+  return merged;
 }
 
 export function updateRecords(

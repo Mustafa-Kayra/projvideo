@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createGame } from "./game";
-import { readRecords, STORAGE_KEY, updateRecords } from "./records";
+import {
+  mergeRecords,
+  persistRecords,
+  readRecords,
+  STORAGE_KEY,
+  updateRecords,
+} from "./records";
 
 const date = "2025-12-31T12:00:00.000Z";
 const game = {
@@ -87,5 +93,76 @@ describe("Yerel rekorlar", () => {
         },
       }),
     ).toEqual([]);
+  });
+  it("eski bir sekmenin düşük skoru depodaki yüksek skoru ezmez", () => {
+    const high = updateRecords([], game, date).records;
+    const stale = updateRecords(
+      [],
+      { ...game, id: "stale", score: 0 },
+      date,
+    ).records;
+    let serialized = JSON.stringify(high);
+    const storage = {
+      getItem: () => serialized,
+      setItem: vi.fn((_key: string, value: string) => {
+        serialized = value;
+      }),
+    };
+    expect(persistRecords(storage, stale)).toEqual(high);
+    expect(JSON.parse(serialized)).toEqual(high);
+    expect(storage.setItem).not.toHaveBeenCalled();
+  });
+  it("sekmelerin farklı kategori, mod ve zorluk rekorlarını birleştirir", () => {
+    const high = updateRecords([], game, date).records;
+    const other = updateRecords(
+      [],
+      {
+        ...game,
+        id: "other",
+        settings: { category: "clubs", difficulty: "hard", mode: "timed" },
+      },
+      date,
+    ).records;
+    let serialized = JSON.stringify(high);
+    const storage = {
+      getItem: () => serialized,
+      setItem: (_key: string, value: string) => {
+        serialized = value;
+      },
+    };
+    expect(persistRecords(storage, other)).toEqual([...high, ...other]);
+    expect(JSON.parse(serialized)).toHaveLength(2);
+    expect(persistRecords(storage, [])).toHaveLength(2);
+  });
+  it("birleştirme yinelenen kombinasyonlarda en yüksek puanı seçer ve girdileri değiştirmez", () => {
+    const high = updateRecords([], game, date).records;
+    const low = [{ ...high[0], id: "low", score: 100 }];
+    const original = structuredClone([low, high]);
+    expect(mergeRecords(low, high, high)).toEqual(high);
+    expect([low, high]).toEqual(original);
+    expect(mergeRecords(high, [{ ...high[0], id: "tie" }])).toEqual(high);
+  });
+  it("bozuk depolama verisinin yerine geçerli rekorları kaydeder", () => {
+    const high = updateRecords([], game, date).records;
+    const setItem = vi.fn();
+    expect(persistRecords({ getItem: () => "broken", setItem }, high)).toEqual(
+      high,
+    );
+    expect(setItem).toHaveBeenCalledWith(STORAGE_KEY, JSON.stringify(high));
+  });
+  it("depo okunamıyorsa mevcut kayıtları ezmeye çalışmaz", () => {
+    const setItem = vi.fn();
+    expect(() =>
+      persistRecords(
+        {
+          getItem: () => {
+            throw new Error("blocked");
+          },
+          setItem,
+        },
+        [],
+      ),
+    ).toThrow("blocked");
+    expect(setItem).not.toHaveBeenCalled();
   });
 });
