@@ -104,10 +104,13 @@ Teknolojiler: Vite, React, TypeScript, Tailwind CSS, Framer Motion, Lucide ve Vi
 
 ## Video
 
-`video/` klasöründe uygulamanın gerçek ekran görüntülerini, kinetik tipografiyi, cihaz çerçevelerini ve sahne geçişlerini kullanan **Remotion** (1920×1080, 30 fps, 54 sn, H.264 `yuv420p`) tanıtım videosu projesi yer alır:
+`video/` klasöründe uygulamanın gerçek ekran görüntülerini, kinetik tipografiyi, cihaz çerçevelerini ve sahne geçişlerini kullanan **Remotion** tanıtım videosu projesi (16:9 yatay `GolBilgiPromo` ve Türkçe seslendirmeli 9:16 dikey `GolBilgiPromoVertical`) yer alır:
 
 ```bash
 cd video
 npm install
+# 16:9 yatay tanıtım videosu (1920x1080, 30 fps, 54 sn)
 npx remotion render src/index.ts GolBilgiPromo out/golbilgi-tanitim.mp4 --codec=h264 --pixel-format=yuv420p
+# 9:16 dikey ve Türkçe seslendirmeli tanıtım videosu (1080x1920, 30 fps, 50 sn)
+npx remotion render src/index.ts GolBilgiPromoVertical out/golbilgi-tanitim-dikey.mp4 --codec=h264 --pixel-format=yuv420p
 ```

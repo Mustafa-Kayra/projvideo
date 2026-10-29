@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "remotion studio",
     "build": "remotion render src/index.ts GolBilgiPromo out/golbilgi-tanitim.mp4",
+    "build:vertical": "remotion render src/index.ts GolBilgiPromoVertical out/golbilgi-tanitim-dikey.mp4",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
