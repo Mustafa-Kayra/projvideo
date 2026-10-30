@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a151c">
+  <meta name="description" content="SON IŞIK — Saatlerin 03:17'de durduğu bir kasabada geçen piksel sanat gizem macerası.">
+  <title>SON IŞIK — Bir zaman kırılması</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <a class="brand" href="index.html" aria-label="Son Işık ana menü"><span class="signal"></span> SON IŞIK <span class="brand-detail">/ BİR ZAMAN KIRILMASI</span></a>
+      <div class="tools"><button id="sound-button" class="tool" aria-label="Sesi aç veya kapat">SES AÇIK <span>[M]</span></button><button id="fullscreen-button" class="tool" aria-label="Tam ekran">TAM EKRAN <span>⤢</span></button></div>
+    </header>
+    <section id="stage" class="stage" aria-label="Son Işık oyun alanı" tabindex="0">
+      <canvas id="screen" width="320" height="180" aria-label="Piksel sanat oyun dünyası"></canvas>
+      <canvas id="hud" aria-hidden="true"></canvas>
+      <div class="vignette" aria-hidden="true"></div>
+      <div id="title" class="title-screen">
+        <div class="title-content">
+          <p class="eyebrow"><span class="tiny-line"></span> GİZEM · MACERA · PSİKOLOJİK</p>
+          <h1>SON<br><span>IŞIK</span><i class="title-dot">.</i></h1>
+          <p class="title-description">Bir kasaba. Duran saatler.<br>Sönmemesi gereken bir ışık.</p>
+          <div class="title-actions"><button id="continue-button" class="primary" hidden>Devam Et <span>→</span></button><button id="new-button" class="primary">Yeni Oyun <span>→</span></button></div>
+          <p id="loop-label" class="loop-label" hidden></p>
+          <p class="title-controls">WASD / OKLAR <b>YÜRÜ</b> <span>·</span> E <b>ETKİLEŞİM</b></p>
+        </div>
+        <div class="title-location"><span class="live-dot"></span> 16 MART 1998 <b>03:17</b><small>HER ŞEY O GECE DURDU.</small></div>
+      </div>
+      <div id="prompt" class="interaction" hidden><kbd>E</kbd><span>İncele</span></div>
+      <div id="dialog" class="dialog panel" role="dialog" aria-label="Diyalog" hidden>
+        <div id="portrait" class="portrait"><canvas width="24" height="28"></canvas></div>
+        <div class="dialog-copy"><div id="speaker" class="eyebrow"></div><p id="dialog-text"></p></div>
+        <button id="dialog-next" class="dialog-next" aria-label="Diyaloğu ilerlet"><kbd>E</kbd> <span>DEVAM</span> ▾</button>
+      </div>
+      <div id="note-overlay" class="modal-scrim" hidden>
+        <article class="paper" role="dialog" aria-modal="true" aria-labelledby="note-title" tabindex="-1">
+          <div class="paper-top"><span id="note-number"></span><button id="note-close" class="paper-close" aria-label="Notu kapat">×</button></div>
+          <p id="note-date" class="paper-date"></p><h2 id="note-title"></h2><div class="paper-rule"></div><p id="note-body"></p>
+          <footer><span id="note-stamp">GÜNLÜĞE EKLENDİ</span><button id="note-done">Kapat <kbd>E</kbd></button></footer>
+        </article>
+      </div>
+      <div id="journal-overlay" class="modal-scrim" hidden>
+        <section class="journal panel" role="dialog" aria-modal="true" aria-labelledby="journal-title">
+          <div class="journal-heading"><div><p class="eyebrow">HATIRLAMAK İÇİN</p><h2 id="journal-title">Aras'ın günlüğü</h2></div><button id="journal-close" class="close" aria-label="Günlüğü kapat">×</button></div>
+          <div class="journal-progress"><span id="journal-count"></span><span>12 PARÇA / BİR GECE</span></div><div id="journal-list" class="journal-list"></div><p class="journal-footer"><kbd>J</kbd> / <kbd>ESC</kbd> KAPAT <span>Bulduğun notları yeniden okuyabilirsin.</span></p>
+        </section>
+      </div>
+      <div id="choice-overlay" class="modal-scrim" hidden><section class="choice panel" role="dialog" aria-modal="true" aria-labelledby="choice-title"><p class="eyebrow">BİR KARAR. SON BİR IŞIK.</p><h2 id="choice-title"></h2><div id="choice-list"></div></section></div>
+      <div id="ask-overlay" class="modal-scrim" hidden><form id="terminal-form" class="terminal panel" aria-labelledby="terminal-label"><p class="eyebrow">PROJE FENER / ERİŞİM TERMİNALİ</p><h2 id="terminal-label">ERİŞİM KODU</h2><label for="code-input">Dört haneli erişim kodunu girin.</label><input id="code-input" type="text" inputmode="numeric" maxlength="5" autocomplete="off" spellcheck="false" placeholder="____"><div class="terminal-actions"><button type="button" id="terminal-cancel">İPTAL <kbd>ESC</kbd></button><button type="submit">ONAYLA <span>↵</span></button></div></form></div>
+      <div id="chapter-card" class="chapter-card" hidden><p id="chapter-kicker" class="eyebrow"></p><span class="chapter-line"></span><h2 id="chapter-title"></h2><button id="chapter-skip" class="quiet">DEVAM <kbd>E</kbd></button></div>
+      <div id="ending" class="ending" hidden><div class="ending-content"><p class="eyebrow">SON IŞIK / 03:17</p><h2 id="ending-title"></h2><div id="ending-lines"></div><div id="ending-footer" hidden><p id="ending-notes"></p><button id="menu-button" class="primary">Ana Menü <span>↵</span></button></div><button id="ending-skip" class="quiet">DEVAM <kbd>E</kbd></button></div></div>
+      <div id="pause-overlay" class="modal-scrim" hidden><section class="pause panel" role="dialog" aria-modal="true" aria-labelledby="pause-title"><p class="eyebrow">ZATEN ZAMAN DURDU.</p><h2 id="pause-title">Bir nefes.</h2><p>İlerlemen otomatik kaydedildi.</p><button id="resume-button" class="primary">Oyuna Dön <span>↵</span></button><button id="pause-menu" class="secondary">Ana Menü</button><p class="pause-controls">WASD / OKLAR — Yürü<br>E / BOŞLUK / ENTER — Etkileşim<br>J — Günlük · M — Ses · ESC — Duraklat</p></section></div>
+      <div id="touch-controls" class="touch-controls" aria-label="Dokunmatik kontroller"><div class="dpad"><button data-direction="up" class="up" aria-label="Yukarı">▲</button><button data-direction="left" class="left" aria-label="Sol">◀</button><button data-direction="right" class="right" aria-label="Sağ">▶</button><button data-direction="down" class="down" aria-label="Aşağı">▼</button></div><div class="touch-actions"><button id="touch-journal" aria-label="Günlük">J</button><button id="touch-use" aria-label="Etkileşim">E</button></div></div>
+      <div id="transition" class="transition" aria-hidden="true"></div>
+    </section>
+    <footer class="page-footer"><span><span class="signal small"></span> 16 MART 1998 <span class="footer-divider">/</span> GECE</span><span>BAZI IŞIKLAR YOLU DEĞİL, HATIRALARI GÖSTERİR.</span><span>16-BİT BİR GİZEM</span></footer>
+  </main>
+  <script src="src/maps.js"></script>
+  <script src="src/sprites.js"></script>
+  <script src="src/audio.js"></script>
+  <script src="src/story.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
