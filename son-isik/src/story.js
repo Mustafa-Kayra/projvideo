@@ -140,9 +140,9 @@
     },
     enter: function (G) {
       const id = G.map.id, chapter = chapters[id]; if (G.has('intro_' + id)) return;
-      G.set('intro_' + id); const lines = chapter.lines.slice();
+      const lines = chapter.lines.slice();
       if (id === 'town' && G.loop > 0) lines.push('Aras: Bu geceyi... daha önce yaşamış gibiyim.');
-      G.card('BÖLÜM ' + chapter.number, chapter.title, function () { G.say(lines); });
+      G.card('BÖLÜM ' + chapter.number, chapter.title, function () { G.say(lines, function () { G.set('intro_' + id); }); });
     }
   };
 }());

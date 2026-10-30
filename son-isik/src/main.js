@@ -33,12 +33,14 @@
       return s;
     } catch (_) { return null; }
   }
-  let keys = new Set(), directionTouch = new Set(), camera = { x: 0, y: 0 }, elapsed = 0, lastFrame = 0, saveClock = 0;
+  const keys = new Set(), directionTouch = new Set(), pressedDirections = new Set();
+  let camera = { x: 0, y: 0 }, elapsed = 0, lastFrame = 0, saveClock = 0;
   let hudW = 0, hudH = 0, uiData = null, transitionToken = 0, exitCooldown = 0, hintTime = 0;
   let activeEntity = null, flashAlpha = 0, flashColor = '210,230,235', lightningAt = 14, shadow = null, shadowGrace = 0;
   const seeded = SL.art.rng(317), rain = Array.from({ length: 100 }, function () { return { x: seeded() * 360, y: seeded() * 220, speed: 65 + seeded() * 40, length: 3 + seeded() * 4, alpha: 0.08 + seeded() * 0.22 }; });
   const panels = ['dialog', 'note-overlay', 'journal-overlay', 'choice-overlay', 'ask-overlay', 'chapter-card', 'pause-overlay'];
   const vectors = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  const directionKeys = { w: 'up', arrowup: 'up', s: 'down', arrowdown: 'down', a: 'left', arrowleft: 'left', d: 'right', arrowright: 'right' };
   const G = SL.game = {
     maps: maps, map: maps.town, player: { x: 104, y: 392, dir: 'down', walking: false }, flags: {}, notes: [], mode: 'title', ui: null,
     loop: Math.max(0, parseInt(stored('sonisik_loop'), 10) || 0), checkpoint: { x: 328, y: 600 },
@@ -66,11 +68,11 @@
   new ResizeObserver(resize).observe(stage); window.addEventListener('resize', resize);
   function openUI(kind, id) {
     panels.forEach(function (p) { $(p).hidden = true; });
-    G.ui = kind; uiData = null; $(id).hidden = false; stage.classList.add('busy'); keys.clear(); directionTouch.clear(); $('prompt').hidden = true;
+    G.ui = kind; uiData = null; $(id).hidden = false; stage.classList.add('busy'); keys.clear(); directionTouch.clear(); pressedDirections.clear(); $('prompt').hidden = true;
   }
   function clearUI() {
     panels.forEach(function (p) { $(p).hidden = true; });
-    G.ui = null; uiData = null; stage.classList.remove('busy'); keys.clear(); stage.focus({ preventScroll: true });
+    G.ui = null; uiData = null; stage.classList.remove('busy'); keys.clear(); directionTouch.clear(); pressedDirections.clear(); stage.focus({ preventScroll: true });
   }
   function say(lines, done) {
     if (!Array.isArray(lines)) lines = [lines];
@@ -126,7 +128,7 @@
       if (found) { const arrow = document.createElement('span'); arrow.className = 'entry-arrow'; arrow.textContent = '↗'; button.append(arrow); button.onclick = function () { showNote(n.id, null, true); }; }
       $('journal-list').append(button);
     });
-    $('journal-close').focus({ preventScroll: true });
+    ($('journal-list').querySelector('button:not(:disabled)') || $('journal-close')).focus({ preventScroll: true });
   }
   function choose(text, choices) {
     openUI('choice', 'choice-overlay'); $('choice-title').textContent = text; $('choice-list').replaceChildren();
@@ -138,7 +140,9 @@
     $('choice-list').firstElementChild.focus({ preventScroll: true });
   }
   function ask(label, callback) {
-    openUI('ask', 'ask-overlay'); uiData = { callback: callback }; $('terminal-label').textContent = label; $('code-input').value = ''; $('code-input').focus({ preventScroll: true });
+    openUI('ask', 'ask-overlay');
+    const data = uiData = { callback: callback }; $('terminal-label').textContent = label; $('code-input').value = '';
+    requestAnimationFrame(function () { if (G.ui === 'ask' && uiData === data) $('code-input').focus({ preventScroll: true }); });
   }
   function submitCode(value) { if (G.ui !== 'ask') return; const callback = uiData.callback; clearUI(); callback(value); }
   function card(kicker, title, done) {
@@ -147,6 +151,7 @@
   function finishCard() { if (G.ui !== 'card') return; const done = uiData.done; clearUI(); if (done) done(); }
   function closeOverlay() {
     if (G.ui === 'note') closeNote(); else if (G.ui === 'ask') submitCode(null);
+    else if (G.ui === 'choice' && G.mode === 'title') mainMenu();
     else if (G.ui === 'journal' || G.ui === 'pause') clearUI(); else if (G.ui === 'dialog' || G.ui === 'card') advance();
   }
   function startGame(resume) {
@@ -217,10 +222,11 @@
   function visible(e) { return !e.show || e.show(); }
   function nearestEntity() {
     const v = vectors[G.player.dir], x = G.player.x + v[0] * 10, y = G.player.y + v[1] * 10;
-    let nearest = null, dist = 13;
+    let nearest = null, dist = Infinity;
     entities[G.map.id].forEach(function (e) {
       if (!e.use || !visible(e)) return;
-      const d = Math.hypot(x - (e.x * 16 + 8), y - (e.y * 16 + 8)); if (d < dist) { dist = d; nearest = e; }
+      const ex = e.x * 16 + 8, ey = e.y * 16 + 8, probe = Math.hypot(x - ex, y - ey), body = Math.hypot(G.player.x - ex, G.player.y - ey);
+      if ((probe < 13 || body < 12) && body < dist) { dist = body; nearest = e; }
     });
     return nearest;
   }
@@ -238,7 +244,7 @@
     const target = targetCamera(), lerp = Math.min(1, dt * 8); camera.x += (target.x - camera.x) * lerp; camera.y += (target.y - camera.y) * lerp;
     if (G.ui) { G.player.walking = false; return; }
     hintTime = Math.max(0, hintTime - dt); saveClock += dt; if (saveClock > 2) { G.save(); saveClock = 0; }
-    const held = function (names, dir) { return directionTouch.has(dir) || names.some(function (k) { return keys.has(k); }); };
+    const held = function (names, dir) { return pressedDirections.has(dir) || directionTouch.has(dir) || names.some(function (k) { return keys.has(k); }); };
     let dx = (held(['d', 'arrowright'], 'right') ? 1 : 0) - (held(['a', 'arrowleft'], 'left') ? 1 : 0);
     let dy = (held(['s', 'arrowdown'], 'down') ? 1 : 0) - (held(['w', 'arrowup'], 'up') ? 1 : 0); G.player.walking = !!(dx || dy);
     if (dx || dy) {
@@ -357,18 +363,26 @@
       $('prompt').style.left = Math.max(8, Math.min(92, x)) + '%'; $('prompt').style.top = Math.max(16, Math.min(91, y)) + '%';
     }
   }
-  function frame(time) { const dt = lastFrame ? Math.min(0.05, (time - lastFrame) / 1000) : 0.016; lastFrame = time; update(dt); drawWorld(); drawHUD(); requestAnimationFrame(frame); }
+  function frame(time) { const dt = lastFrame ? Math.min(0.05, (time - lastFrame) / 1000) : 0.016; lastFrame = time; update(dt); pressedDirections.clear(); drawWorld(); drawHUD(); requestAnimationFrame(frame); }
   function soundButton() { $('sound-button').innerHTML = (audio.isMuted() ? 'SES KAPALI' : 'SES AÇIK') + ' <span>[M]</span>'; $('sound-button').setAttribute('aria-pressed', String(!audio.isMuted())); }
   function toggleSound() { audio.init(); audio.toggleMute(); soundButton(); }
   window.addEventListener('keydown', function (event) {
     audio.init(); const key = event.key.toLowerCase();
     if (event.target === $('code-input')) { if (key === 'escape') { event.preventDefault(); submitCode(null); } return; }
     if (key === 'm' && !event.repeat) { event.preventDefault(); toggleSound(); return; }
-    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
-      if (G.mode === 'play' && !G.ui) { event.preventDefault(); keys.add(key); }
-      else if ((G.ui === 'choice' || G.ui === 'journal') && key.startsWith('arrow')) {
-        event.preventDefault(); const buttons = Array.from((G.ui === 'choice' ? $('choice-list') : $('journal-list')).querySelectorAll('button:not(:disabled)'));
-        if (buttons.length) { let i = buttons.indexOf(document.activeElement); i = (i + (key === 'arrowup' || key === 'arrowleft' ? -1 : 1) + buttons.length) % buttons.length; buttons[i].focus({ preventScroll: true }); }
+    const direction = directionKeys[key];
+    if (direction) {
+      if (G.mode === 'play' && !G.ui) { event.preventDefault(); keys.add(key); pressedDirections.add(direction); G.player.dir = direction; }
+      else if (G.ui === 'choice' || G.ui === 'journal') {
+        event.preventDefault();
+        const buttons = Array.from((G.ui === 'choice' ? $('choice-list') : $('journal-list')).querySelectorAll('button'));
+        const first = buttons.find(function (button) { return !button.disabled; }), index = buttons.indexOf(document.activeElement);
+        if (index < 0) { if (first) first.focus({ preventScroll: true }); return; }
+        const step = (direction === 'up' || direction === 'left' ? -1 : 1) * (G.ui === 'journal' && (direction === 'up' || direction === 'down') ? 2 : 1);
+        for (let n = 1; n <= buttons.length; n++) {
+          const i = ((index + step * n) % buttons.length + buttons.length) % buttons.length;
+          if (!buttons[i].disabled) { buttons[i].focus({ preventScroll: true }); break; }
+        }
       }
       return;
     }
@@ -376,6 +390,12 @@
     if (key === 'escape') { event.preventDefault(); if (G.ui) closeOverlay(); else if (G.mode === 'play') pause(); return; }
     if (key === 'j' && G.mode === 'play') { event.preventDefault(); if (G.ui === 'journal') clearUI(); else if (!G.ui) showJournal(); return; }
     if (G.ui === 'choice' && /^[123]$/.test(key)) { const button = $('choice-list').children[Number(key) - 1]; if (button) button.click(); return; }
+    if (key === 'e' && (G.ui === 'choice' || G.ui === 'journal')) {
+      event.preventDefault();
+      const buttons = Array.from((G.ui === 'choice' ? $('choice-list') : $('journal-list')).querySelectorAll('button:not(:disabled)'));
+      const button = buttons.find(function (button) { return button === document.activeElement; }) || buttons[0];
+      if (button) button.click(); return;
+    }
     if (key === 'e' || key === ' ' || key === 'enter') {
       if ((key === 'enter' || key === ' ') && event.target instanceof HTMLButtonElement) return;
       if (G.mode === 'title' && !G.ui) { event.preventDefault(); savedGame() ? startGame(true) : startGame(false); }
@@ -383,8 +403,8 @@
     }
   });
   window.addEventListener('keyup', function (event) { keys.delete(event.key.toLowerCase()); });
-  window.addEventListener('blur', function () { keys.clear(); directionTouch.clear(); G.save(); });
-  document.addEventListener('visibilitychange', function () { if (document.hidden) { keys.clear(); directionTouch.clear(); G.save(); } });
+  window.addEventListener('blur', function () { keys.clear(); directionTouch.clear(); pressedDirections.clear(); G.save(); });
+  document.addEventListener('visibilitychange', function () { if (document.hidden) { keys.clear(); directionTouch.clear(); pressedDirections.clear(); G.save(); } });
   window.addEventListener('beforeunload', G.save); document.addEventListener('pointerdown', function () { audio.init(); }, { once: true });
   $('new-button').onclick = function () {
     if (!savedGame()) { startGame(false); return; }
@@ -393,6 +413,7 @@
   $('continue-button').onclick = G.continueGame; $('dialog-next').onclick = advance; $('note-close').onclick = closeNote; $('note-done').onclick = closeNote;
   $('journal-close').onclick = clearUI; $('terminal-cancel').onclick = function () { submitCode(null); };
   $('terminal-form').onsubmit = function (event) { event.preventDefault(); submitCode($('code-input').value); };
+  $('code-input').addEventListener('input', function () { this.value = this.value.replace(/\D/g, '').slice(0, 4); });
   $('chapter-skip').onclick = finishCard; $('ending-skip').onclick = revealEnding; $('menu-button').onclick = mainMenu; $('resume-button').onclick = clearUI;
   $('pause-menu').onclick = function () { G.save(); mainMenu(); }; $('sound-button').onclick = toggleSound;
   $('fullscreen-button').onclick = function () {
@@ -400,7 +421,11 @@
     else if (stage.requestFullscreen) stage.requestFullscreen().catch(function () {});
   };
   document.querySelectorAll('[data-direction]').forEach(function (button) {
-    button.addEventListener('pointerdown', function (event) { event.preventDefault(); button.setPointerCapture(event.pointerId); directionTouch.add(button.dataset.direction); });
+    button.addEventListener('pointerdown', function (event) {
+      event.preventDefault(); if (G.mode !== 'play' || G.ui) return;
+      button.setPointerCapture(event.pointerId); const direction = button.dataset.direction;
+      directionTouch.add(direction); pressedDirections.add(direction); G.player.dir = direction;
+    });
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (name) { button.addEventListener(name, function () { directionTouch.delete(button.dataset.direction); }); });
   });
   $('touch-use').onclick = advance; $('touch-journal').onclick = function () { if (G.ui === 'journal') clearUI(); else if (!G.ui) showJournal(); };

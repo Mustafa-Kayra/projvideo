@@ -79,7 +79,6 @@
     const c = canvas.getContext('2d'); for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) tile(c, map.rows[y][x], x, y, map);
     if (map.id === 'town') {
       [[6, 19], [14, 5], [32, 7]].forEach(function (p) { const x = p[0] * 16, y = p[1] * 16; rect(c, '#273942', x + 2, y + 2, 8, 12); rect(c, '#9b8672', x, y, 7, 11); rect(c, '#4d4946', x - 1, y, 9, 3); rect(c, '#c6ad85', x, y, 8, 1); });
-      [[6, 24, 'YALIN'], [14, 12, 'OKUL'], [28, 24, 'KARAKOL'], [31, 12, 'FIRIN']].forEach(function (p) { c.font = '4px monospace'; c.textAlign = 'center'; c.fillStyle = '#c8c4a3'; c.fillText(p[2], p[0] * 16 + 8, p[1] * 16 - 14); });
     }
     return canvas;
   }
