@@ -393,7 +393,7 @@
     if (key === 'e' && (G.ui === 'choice' || G.ui === 'journal')) {
       event.preventDefault();
       const buttons = Array.from((G.ui === 'choice' ? $('choice-list') : $('journal-list')).querySelectorAll('button:not(:disabled)'));
-      const button = buttons.find(function (button) { return button === document.activeElement; }) || buttons[0];
+      const button = document.activeElement instanceof HTMLButtonElement ? document.activeElement : buttons[0];
       if (button) button.click(); return;
     }
     if (key === 'e' || key === ' ' || key === 'enter') {
